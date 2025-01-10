@@ -14,7 +14,7 @@ class StorageComponent:
         self.disk_config = None
         self.default_disk = 'local'  # Default disk can be set here
     
-    def _load_config(self, config_path: str):
+    def _load_config(self, config_path: str) -> json:
         """Load configuration from a file."""
         with open(config_path, 'r') as file:
             return json.load(file)
@@ -64,13 +64,19 @@ class StorageComponent:
     def _create_s3_driver(self):
         """Create S3 connection."""
         try:
-            s3_config = self.disk_config.get('s3', {})
+            s3_config = self.disk_config.get('s3')
             bucket = s3_config.get('bucket')
-            key = s3_config.get('key')
-            secret = s3_config.get('secret')
+            aws_access_key_id = s3_config.get('key')
+            aws_secret_access_key = s3_config.get('secret')
             region = s3_config.get('region')
-
-            self.filesystem[self.active_disk] = S3FS(f"{bucket}://", key=key, secret=secret, region=region)
+            
+            # Initialize the S3 filesystem
+            self.filesystem[self.active_disk] = S3FS(
+                bucket_name=bucket,
+                aws_access_key_id=aws_access_key_id,
+                aws_secret_access_key=aws_secret_access_key,
+                region=region
+            )
         except Exception as e:
             logging.error(f"Error creating S3 driver: {e}")
 
@@ -82,7 +88,7 @@ class StorageComponent:
         except Exception as e:
             logging.error(f"Error creating local driver: {e}")
     
-    def store(self, path: str, content: str):
+    def write(self, path: str, content: str):
         """Store a file in the given filesystem."""
         try:
             self.get_adapter().writetext(path, content)
@@ -117,7 +123,7 @@ class StorageComponent:
             logging.error(f"Error checking file existence for '{path}': {e}")
             return False
 
-    def upload(self, source_path: str, dest_path: str):
+    def put(self, source_path: str, dest_path: str):
         """
         Upload a file from the local filesystem to the given filesystem.
         
@@ -132,7 +138,7 @@ class StorageComponent:
         except Exception as e:
             logging.error(f"Error uploading file '{source_path}' to '{dest_path}': {e}")
 
-    def list(self, directory: str = "/") -> list:
+    def listing(self, directory: str = "/") -> list:
         """
         List files in the specified directory of the given filesystem.
         
@@ -149,15 +155,22 @@ class StorageComponent:
         except Exception as e:
             logging.error(f"Error listing directory '{directory}': {e}")
             return []
+        
+    def move(self, src_path: str, dst_path: str, overwrite: bool = False):
+        try:
+            return self.get_adapter().move(src_path, dst_path, overwrite)
+        except Exception as e:
+            logging.error(f"Error moving file '{src_path}' to '{dst_path}': {e}")
 
 
 # Initialize the PyFilesystemExample with the path to your configuration
-fs_example = StorageComponent()
-# Set the active disk (choose between 'local', 's3_disk', or 'sftp_disk')
-fs = fs_example.disk('local')  # or fs_example.disk('s3_disk')
-print(fs.list())
+storage = StorageComponent()
 
-test = fs_example.disk('second_local').list()
-print(test)
+s3 = storage.disk('s3').listing()
+#storage.disk('s3').put('steg.py', '/steg.py')
+storage.disk('s3').move('/steg.py', '/python/steg.py')
+print(s3)
+# Get the filesystem adapter (e.g., local filesystem, S3, or SFTP)
+#fs = fs_example.get_adapter()
 
 
