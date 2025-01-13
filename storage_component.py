@@ -5,19 +5,15 @@ from fs.osfs import OSFS
 from fs_s3fs import S3FS
 from fs.sftpfs import SFTPFS
 from fs.errors import ResourceNotFound
+from config import config
 
 class StorageComponent:
     def __init__(self):
-        self.config = self._load_config("config.json")
+        self.config = config
         self.filesystem = {}
         self.active_disk = None
         self.disk_config = None
         self.default_disk = 'local'  # Default disk can be set here
-    
-    def _load_config(self, config_path: str) -> json:
-        """Load configuration from a file."""
-        with open(config_path, 'r') as file:
-            return json.load(file)
         
     def get_adapter(self):
         """Return the adapter (filesystem) for the selected disk."""
